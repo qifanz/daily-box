@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Box · 每日知识盲盒</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient-bg" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Navigation -->
+    <header class="top-bar">
+      <div class="brand-group">
+        <div class="logo-mark" aria-hidden="true">🎁</div>
+        <div>
+          <h1 class="app-title">Daily Box <span class="app-subtitle">每日知识盲盒</span></h1>
+          <p id="todayLabel" class="today-label">加载中...</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="stat-pills">
+          <span id="streakBadge" class="stat-pill" title="连续每天至少拆开 1 个盲盒的天数">🔥 连续 0 天</span>
+          <span id="deckProgressBadge" class="stat-pill" title="题库解锁进度">📦 已解锁 0 / 36</span>
+        </div>
+
+        <div class="action-buttons">
+          <button id="openBookmarksBtn" class="btn btn-ghost" type="button">
+            <span>⭐ 收藏与口味</span>
+            <span id="bookmarkCount" class="count-badge">0</span>
+          </button>
+          <button id="openAIModalBtn" class="btn btn-accent-soft" type="button">
+            ✨ AI 补充盲盒
+          </button>
+          <button id="themeToggleBtn" class="btn btn-icon" type="button" title="切换深浅色模式" aria-label="切换深浅色模式">
+            🌙
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Category Selector Bar (for Today's unopened boxes) -->
+    <section id="categorySection" class="category-section" aria-label="抽盒偏好筛选">
+      <div class="category-header">
+        <span class="section-hint" id="filterHintText">🎲 当前抽盒模式：<strong>智能随缘</strong>（根据你的「💡有意思」口味权重推荐）</span>
+      </div>
+      <div id="categoryBar" class="category-bar"></div>
+    </section>
+
+    <!-- Historical Date Banner (shown when reviewing a past date from the calendar) -->
+    <section id="historyBanner" class="history-banner hidden">
+      <div class="history-banner-left">
+        <span class="history-icon">🕰️</span>
+        <div>
+          <strong id="historyBannerTitle">正在回看历史记录</strong>
+          <p id="historyBannerSub" class="history-sub">回顾过去拆开的盲盒卡片</p>
+        </div>
+      </div>
+      <button id="backToTodayBtn" class="btn btn-primary" type="button">回到今天</button>
+    </section>
+
+    <!-- Main Blind Box Stage -->
+    <main class="stage-section">
+      <div id="boxesGrid" class="boxes-grid"></div>
+
+      <div id="extraBoxRow" class="extra-box-row">
+        <span id="dailyStatusText" class="daily-status-text">今日盲盒准备就绪</span>
+        <button id="addExtraBoxBtn" class="btn btn-outline" type="button">
+          ➕ 意犹未尽？再加拆 1 盒
+        </button>
+      </div>
+    </main>
+
+    <!-- Curiosity Calendar -->
+    <section class="calendar-card" aria-label="好奇心日历">
+      <div class="calendar-header">
+        <div>
+          <h2 class="calendar-title">🗓️ 好奇心日历 <span class="calendar-range">近 60 天</span></h2>
+          <p id="calendarSummary" class="calendar-desc">每天拆开一个盲盒，点亮属于你的知识小方格（点击任意日期可回看当天卡片）</p>
+        </div>
+        <div class="calendar-legend" aria-hidden="true">
+          <span>少</span>
+          <i class="legend-dot level-0"></i>
+          <i class="legend-dot level-1"></i>
+          <i class="legend-dot level-2"></i>
+          <i class="legend-dot level-3"></i>
+          <span>多</span>
+        </div>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+  </div>
+
+  <!-- Slide-over Drawer: Bookmarks & Taste Weights -->
+  <div id="drawerOverlay" class="overlay hidden"></div>
+  <aside id="bookmarkDrawer" class="drawer hidden" aria-label="收藏与口味面板">
+    <div class="drawer-header">
+      <div class="drawer-tabs">
+        <button id="tabBookmarksBtn" class="drawer-tab active" type="button">⭐ 我的收藏</button>
+        <button id="tabWeightsBtn" class="drawer-tab" type="button">🎛️ 口味雷达</button>
+      </div>
+      <button id="closeDrawerBtn" class="btn btn-icon" type="button" aria-label="关闭抽屉">✕</button>
+    </div>
+
+    <!-- Tab 1: Bookmarks -->
+    <div id="drawerTabBookmarks" class="drawer-body">
+      <div class="search-box">
+        <input id="bookmarkSearchInput" type="search" placeholder="搜索收藏的卡片关键词或领域..." />
+      </div>
+      <div id="bookmarkList" class="bookmark-list"></div>
+    </div>
+
+    <!-- Tab 2: Taste Weights -->
+    <div id="drawerTabWeights" class="drawer-body hidden">
+      <p class="taste-intro">
+        每次点击卡片底部的 <strong>💡 有意思</strong> 或 <strong>🥱 一般</strong>，都会自动调整对应领域的抽盒概率权重：
+      </p>
+      <div id="tasteWeightsList" class="taste-weights-list"></div>
+      <div class="taste-footer">
+        <button id="resetWeightsBtn" class="btn btn-outline btn-sm" type="button">重置所有口味权重为 1.0x</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Modal: AI Card Generator -->
+  <div id="aiModalOverlay" class="overlay hidden"></div>
+  <div id="aiModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
+    <div class="modal-header">
+      <h2 id="aiModalTitle">✨ AI 动态补充知识盲盒</h2>
+      <button id="closeAIModalBtn" class="btn btn-icon" type="button" aria-label="关闭弹窗">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">
+        内置 36 张精选卡片离线即用。如果你想无限扩充题库，或者把<strong>自己平时好奇的问题</strong>变成盲盒卡片，可配置 API 一键生成（密钥仅保存在你的本地浏览器中）。
+      </p>
+
+      <div class="form-group">
+        <label for="aiTopicInput">🔍 想专门探索某个好奇心问题？（选填）</label>
+        <input
+          id="aiTopicInput"
+          type="text"
+          placeholder="留空则按你的口味权重自动生成；也可填如：为什么猫咪喜欢钻纸箱？"
+        />
+      </div>
+
+      <hr class="divider" />
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="aiProviderSelect">接口类型</label>
+          <select id="aiProviderSelect">
+            <option value="gemini">Google Gemini API</option>
+            <option value="openai">OpenAI 兼容接口 (DeepSeek / OpenRouter / GPT)</option>
+            <option value="ollama">本地 Ollama (免 Key)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="aiModelInput">模型名称</label>
+          <input id="aiModelInput" type="text" placeholder="gemini-2.5-flash" />
+        </div>
+      </div>
+
+      <div id="aiBaseUrlGroup" class="form-group hidden">
+        <label for="aiBaseUrlInput">API Base URL</label>
+        <input id="aiBaseUrlInput" type="text" placeholder="https://api.openai.com/v1" />
+      </div>
+
+      <div id="aiApiKeyGroup" class="form-group">
+        <label for="aiApiKeyInput">API Key</label>
+        <input id="aiApiKeyInput" type="password" placeholder="粘贴你的 API Key（仅存本地 localStorage）" />
+      </div>
+
+      <div id="aiStatusMsg" class="ai-status-msg hidden"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="saveAIConfigBtn" class="btn btn-ghost" type="button">仅保存配置</button>
+      <button id="generateAICardsBtn" class="btn btn-primary" type="button">✨ 立即生成 3 张新盲盒</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts (classic defer scripts for full file:// & Chrome NewTab compatibility) -->
+  <script src="data/seed-cards.js" charset="UTF-8" defer></script>
+  <script src="js/storage.js" charset="UTF-8" defer></script>
+  <script src="js/recommender.js" charset="UTF-8" defer></script>
+  <script src="js/ai-generator.js" charset="UTF-8" defer></script>
+  <script src="js/app.js" charset="UTF-8" defer></script>
+</body>
+</html>

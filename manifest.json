@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Daily Box · 每日知识盲盒",
+  "version": "1.0.0",
+  "description": "每天拆开 3 个 30 秒跨学科知识盲盒，用极低摩擦养成终身好奇心。",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://localhost/*"
+  ]
+}
