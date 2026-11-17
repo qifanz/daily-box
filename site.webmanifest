@@ -1,0 +1,25 @@
+{
+  "name": "Daily Box · 每日知识盲盒",
+  "short_name": "Daily Box",
+  "description": "每天拆开 3 个 30 秒跨学科知识盲盒，用极低摩擦养成终身好奇心。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

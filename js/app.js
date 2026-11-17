@@ -48,6 +48,10 @@
 
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
+    const metaTheme = document.getElementById('themeColorMeta');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', theme === 'dark' ? '#0d1017' : '#f6f7fb');
+    }
     const btn = document.getElementById('themeToggleBtn');
     if (btn) {
       btn.textContent = theme === 'dark' ? '☀️' : '🌙';
@@ -138,6 +142,9 @@
     const aiBadge = card.isAI
       ? `<span class="diff-badge" title="由 AI 动态生成">✨ AI</span>`
       : '';
+    const autoBadge = card.isAuto
+      ? `<span class="diff-badge auto-badge" title="每周云端自动更新">🆕 周更</span>`
+      : '';
 
     let quizHtml = '';
     if (card.quiz && Array.isArray(card.quiz.options)) {
@@ -182,6 +189,7 @@
           </span>
           <span class="diff-badge">${escapeHtml(card.difficulty || '轻松')}</span>
           ${aiBadge}
+          ${autoBadge}
         </div>
         <span class="slot-num">${slotLabel}</span>
       </div>
@@ -783,9 +791,23 @@
     });
   }
 
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    const isWebOrigin =
+      window.location.protocol === 'https:' ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+    if (!isWebOrigin) return;
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
+  registerServiceWorker();
 })();

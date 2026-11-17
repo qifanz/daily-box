@@ -1,7 +1,17 @@
 (function () {
   function getAllCards() {
     const state = window.DailyBoxStorage.loadState();
-    return [...(state.customCards || []), ...(window.SEED_CARDS || [])];
+    const combined = [
+      ...(state.customCards || []),
+      ...(window.AUTO_CARDS || []),
+      ...(window.SEED_CARDS || [])
+    ];
+    const seenIds = new Set();
+    return combined.filter((card) => {
+      if (!card || !card.id || seenIds.has(card.id)) return false;
+      seenIds.add(card.id);
+      return true;
+    });
   }
 
   function getCardById(cardId) {
@@ -22,7 +32,11 @@
 
   function weightedPick(candidates, weights) {
     if (!candidates.length) return null;
-    const itemWeights = candidates.map((card) => Math.max(0.1, weights[card.category] || 1.0));
+    const itemWeights = candidates.map((card) => {
+      const catWeight = Math.max(0.1, weights[card.category] || 1.0);
+      const freshnessBoost = card.isAuto ? 2.0 : 1.0;
+      return catWeight * freshnessBoost;
+    });
     const totalWeight = itemWeights.reduce((sum, w) => sum + w, 0);
     let r = Math.random() * totalWeight;
     for (let i = 0; i < candidates.length; i++) {

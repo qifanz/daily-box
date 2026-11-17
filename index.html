@@ -2,8 +2,15 @@
 <html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta id="themeColorMeta" name="theme-color" content="#f6f7fb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Daily Box" />
   <title>Daily Box · 每日知识盲盒</title>
+  <link rel="manifest" href="site.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,7 +33,7 @@
       <div class="top-actions">
         <div class="stat-pills">
           <span id="streakBadge" class="stat-pill" title="连续每天至少拆开 1 个盲盒的天数">🔥 连续 0 天</span>
-          <span id="deckProgressBadge" class="stat-pill" title="题库解锁进度">📦 已解锁 0 / 36</span>
+          <span id="deckProgressBadge" class="stat-pill" title="题库解锁进度">📦 已解锁 0 / 100</span>
         </div>
 
         <div class="action-buttons">
@@ -136,7 +143,7 @@
     </div>
     <div class="modal-body">
       <p class="modal-desc">
-        内置 36 张精选卡片离线即用。如果你想无限扩充题库，或者把<strong>自己平时好奇的问题</strong>变成盲盒卡片，可配置 API 一键生成（密钥仅保存在你的本地浏览器中）。
+        内置 100 张精选卡片离线即用。如果你想无限扩充题库，或者把<strong>自己平时好奇的问题</strong>变成盲盒卡片，可配置 API 一键生成（密钥仅保存在你的本地浏览器中）。
       </p>
 
       <div class="form-group">
@@ -188,6 +195,7 @@
 
   <!-- Scripts (classic defer scripts for full file:// & Chrome NewTab compatibility) -->
   <script src="data/seed-cards.js" charset="UTF-8" defer></script>
+  <script src="data/auto-cards.js" charset="UTF-8" defer></script>
   <script src="js/storage.js" charset="UTF-8" defer></script>
   <script src="js/recommender.js" charset="UTF-8" defer></script>
   <script src="js/ai-generator.js" charset="UTF-8" defer></script>
