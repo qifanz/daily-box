@@ -34,7 +34,7 @@
         provider: 'gemini',
         apiKey: '',
         baseUrl: 'https://api.openai.com/v1',
-        model: 'gemini-2.5-flash'
+        model: 'gemini-3.8-flash'
       }
     };
   }
@@ -51,11 +51,15 @@
       }
       const parsed = JSON.parse(raw);
       const defaults = createDefaultState();
+      const mergedAIConfig = { ...defaults.aiConfig, ...(parsed.aiConfig || {}) };
+      if (mergedAIConfig.model === 'gemini-2.5-flash') {
+        mergedAIConfig.model = 'gemini-3.8-flash';
+      }
       return {
         ...defaults,
         ...parsed,
         weights: { ...defaults.weights, ...(parsed.weights || {}) },
-        aiConfig: { ...defaults.aiConfig, ...(parsed.aiConfig || {}) }
+        aiConfig: mergedAIConfig
       };
     } catch (err) {
       if (!memoryFallback) memoryFallback = createDefaultState();

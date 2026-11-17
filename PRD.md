@@ -68,6 +68,10 @@
 
 ## 5. 变更日志（Change Log）
 
+### v1.1.1 — 2026-11-16
+- **修复 Gemini 默认模型下线导致的 404 问题**：将默认 Gemini 模型由已对新用户下线的 `gemini-2.5-flash` 升级为 `gemini-3.8-flash`，并在 `js/storage.js` 中对本地旧缓存配置自动迁移。
+- **涉及文件**：`scripts/generate-weekly-cards.mjs`, `js/storage.js`, `js/ai-generator.js`, `js/app.js`, `index.html`, `sw.js`, `PRD.md`
+
 ### v1.1.0 — 2026-11-16
 - **题库扩容至 100 张（10 大领域）**：新增「🌌 宇宙与天文」「🩺 医学与身体」两大领域，全站 10 个领域各扩充至 10 张原创整理卡片。
 - **每周云端自动长新卡流水线**：新增周更卡池文件与 GitHub Actions 定时任务，支持配置 Secrets 后每周自动生成 10 张去重卡片并自动重新发布。
