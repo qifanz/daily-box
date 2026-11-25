@@ -34,7 +34,7 @@
         provider: 'gemini',
         apiKey: '',
         baseUrl: 'https://api.openai.com/v1',
-        model: 'gemini-3.8-flash'
+        model: 'gemini-4-hydrogen'
       }
     };
   }
@@ -52,8 +52,8 @@
       const parsed = JSON.parse(raw);
       const defaults = createDefaultState();
       const mergedAIConfig = { ...defaults.aiConfig, ...(parsed.aiConfig || {}) };
-      if (mergedAIConfig.model === 'gemini-2.5-flash') {
-        mergedAIConfig.model = 'gemini-3.8-flash';
+      if (mergedAIConfig.model === 'gemini-2.5-flash' || mergedAIConfig.model === 'gemini-3.8-flash') {
+        mergedAIConfig.model = 'gemini-4-hydrogen';
       }
       return {
         ...defaults,

@@ -643,7 +643,7 @@
       baseUrlGroup.classList.add('hidden');
       apiKeyGroup.classList.remove('hidden');
       if (!modelInput.value || modelInput.value === 'gpt-4o-mini' || modelInput.value === 'qwen2.5:7b') {
-        modelInput.value = 'gemini-3.8-flash';
+        modelInput.value = 'gemini-4-hydrogen';
       }
     } else if (provider === 'openai') {
       baseUrlGroup.classList.remove('hidden');
@@ -668,7 +668,7 @@
     const state = Storage.loadState();
     const cfg = state.aiConfig || {};
     document.getElementById('aiProviderSelect').value = cfg.provider || 'gemini';
-    document.getElementById('aiModelInput').value = cfg.model || 'gemini-3.8-flash';
+    document.getElementById('aiModelInput').value = cfg.model || 'gemini-4-hydrogen';
     document.getElementById('aiBaseUrlInput').value = cfg.baseUrl || 'https://api.openai.com/v1';
     document.getElementById('aiApiKeyInput').value = cfg.apiKey || '';
     document.getElementById('aiStatusMsg').classList.add('hidden');

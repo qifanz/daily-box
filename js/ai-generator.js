@@ -100,7 +100,7 @@ ${topicInstruction}
     let rawText = '';
 
     if (provider === 'gemini') {
-      const model = (cfg.model || 'gemini-3.8-flash').trim();
+      const model = (cfg.model || 'gemini-4-hydrogen').trim();
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
         model
       )}:generateContent?key=${encodeURIComponent(apiKey)}`;

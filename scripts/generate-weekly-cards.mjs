@@ -76,7 +76,12 @@ function extractJsonArray(rawText) {
 }
 
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
-const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
+const RETRY_DELAYS_MS = [4000, 12000];
+const DEFAULT_GEMINI_MODELS = [
+  'gemini-4-hydrogen',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite'
+];
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -103,14 +108,16 @@ async function fetchWithRetry(url, options, providerLabel) {
 
     const errText = await res.text();
     if (!RETRYABLE_STATUSES.has(res.status) || attempt === RETRY_DELAYS_MS.length) {
-      throw new Error(`${providerLabel} API error (${res.status}): ${errText.slice(0, 200)}`);
+      const err = new Error(`${providerLabel} API error (${res.status}): ${errText.slice(0, 200)}`);
+      err.status = res.status;
+      throw err;
     }
 
     const retryAfterSec = Number(res.headers.get('retry-after'));
     const baseWaitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0
-      ? Math.min(retryAfterSec * 1000, 90000)
+      ? Math.min(retryAfterSec * 1000, 60000)
       : RETRY_DELAYS_MS[attempt];
-    const jitterMs = Math.floor(Math.random() * 1500);
+    const jitterMs = Math.floor(Math.random() * 1200);
     console.warn(
       `⚠️ ${providerLabel} returned ${res.status}, retrying (${attempt + 1}/${RETRY_DELAYS_MS.length}) in ${Math.round((baseWaitMs + jitterMs) / 1000)}s...`
     );
@@ -118,30 +125,81 @@ async function fetchWithRetry(url, options, providerLabel) {
   }
 }
 
+async function discoverFlashFallbackModels(apiKey, alreadyTried) {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const models = Array.isArray(data?.models) ? data.models : [];
+    return models
+      .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+      .map((m) => String(m.name || '').replace(/^models\//, ''))
+      .filter((id) => id && !alreadyTried.has(id) && /(hydrogen|flash|lite)/i.test(id) && !/(tts|image|audio|live)/i.test(id))
+      .slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
 async function callGemini(prompt, apiKey) {
-  const model = (process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    model
-  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const preferred = (process.env.GEMINI_MODEL || '').trim();
+  const candidates = [...new Set([preferred, ...DEFAULT_GEMINI_MODELS].filter(Boolean))];
+  const tried = new Set();
+  let lastError = null;
 
-  const res = await fetchWithRetry(
-    url,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.85,
-          responseMimeType: 'application/json'
+  const tryModelList = async (modelList) => {
+    for (const model of modelList) {
+      if (tried.has(model)) continue;
+      tried.add(model);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+        model
+      )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+      try {
+        const res = await fetchWithRetry(
+          url,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.85,
+                responseMimeType: 'application/json'
+              }
+            })
+          },
+          `Gemini(${model})`
+        );
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text) {
+          if (model !== candidates[0]) {
+            console.log(`ℹ️ Fallback model ${model} succeeded.`);
+          }
+          return text;
         }
-      })
-    },
-    'Gemini'
-  );
+      } catch (err) {
+        lastError = err;
+        console.warn(`⚠️ Model ${model} unavailable (${err.status || 'err'}), trying next candidate...`);
+      }
+    }
+    return null;
+  };
 
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const primaryResult = await tryModelList(candidates);
+  if (primaryResult) return primaryResult;
+
+  const discovered = await discoverFlashFallbackModels(apiKey, tried);
+  if (discovered.length > 0) {
+    console.log(`🔎 Discovered additional Gemini models: ${discovered.join(', ')}`);
+    const fallbackResult = await tryModelList(discovered);
+    if (fallbackResult) return fallbackResult;
+  }
+
+  throw lastError || new Error('All Gemini candidate models failed');
 }
 
 async function callOpenAICompatible(prompt, apiKey) {

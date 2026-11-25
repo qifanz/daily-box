@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daily-box-v1.1.1';
+const CACHE_NAME = 'daily-box-v1.1.4';
 const CORE_ASSETS = [
   './',
   './index.html',

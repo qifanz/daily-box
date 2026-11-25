@@ -68,6 +68,11 @@
 
 ## 5. 变更日志（Change Log）
 
+### v1.1.4 — 2026-11-24
+- **默认切换至 `gemini-4-hydrogen` 并新增多模型自动降级链**：在 `scripts/generate-weekly-cards.mjs` 中优先使用 `gemini-4-hydrogen`，若遇连续 `503/429` 或 `404` 自动依次降级至 `gemini-3.8-flash`、`gemini-3.5-flash-lite` 及动态发现的可用 Flash 模型；同步更新前端默认模型配置与旧缓存迁移。
+- **加固 Pages 部署稳定性**：在 `.github/workflows/deploy.yml` 的上传与发布步骤间增加 5 秒缓冲，规避 GitHub artifact 元数据读取竞态。
+- **涉及文件**：`scripts/generate-weekly-cards.mjs`, `.github/workflows/deploy.yml`, `js/storage.js`, `js/ai-generator.js`, `js/app.js`, `index.html`, `sw.js`, `PRD.md`
+
 ### v1.1.3 — 2026-11-24
 - **每周自动补卡数量扩容至 30 张**：升级 `scripts/generate-weekly-cards.mjs` 支持 `WEEKLY_CARD_COUNT=30` 分 3 批 × 10 张稳健生成，均衡分配 10 大领域并实时跨批去重（避重窗口扩大至最近 200 条），支持部分批次成功即落盘。
 - **涉及文件**：`scripts/generate-weekly-cards.mjs`, `.github/workflows/weekly-cards.yml`, `PRD.md`
