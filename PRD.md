@@ -53,7 +53,7 @@
 - **GitHub 仓库**：https://github.com/qifanz/daily-box
 - **线上访问地址**：https://qifanz.github.io/daily-box/
 - **自动部署机制**：推送至 `main` 分支后，由 `.github/workflows/deploy.yml` 自动部署至 GitHub Pages。
-- **每周自动补卡机制**：`.github/workflows/weekly-cards.yml` 每周一运行 `scripts/generate-weekly-cards.mjs`（需在仓库 Settings → Secrets 中配置 `GEMINI_API_KEY` 或 `OPENAI_API_KEY`），自动生成 10 张不重复卡片写入 `data/auto-cards.js` 并触发重新部署。
+- **每周自动补卡机制**：`.github/workflows/weekly-cards.yml` 每周一运行 `scripts/generate-weekly-cards.mjs`（需在仓库 Settings → Secrets 中配置 `GEMINI_API_KEY` 或 `OPENAI_API_KEY`），分 3 批共生成约 30 张不重复卡片写入 `data/auto-cards.js` 并触发重新部署。
 
 ---
 
@@ -67,6 +67,10 @@
 ---
 
 ## 5. 变更日志（Change Log）
+
+### v1.1.3 — 2026-11-24
+- **每周自动补卡数量扩容至 30 张**：升级 `scripts/generate-weekly-cards.mjs` 支持 `WEEKLY_CARD_COUNT=30` 分 3 批 × 10 张稳健生成，均衡分配 10 大领域并实时跨批去重（避重窗口扩大至最近 200 条），支持部分批次成功即落盘。
+- **涉及文件**：`scripts/generate-weekly-cards.mjs`, `.github/workflows/weekly-cards.yml`, `PRD.md`
 
 ### v1.1.2 — 2026-11-24
 - **增强每周自动生卡脚本稳定性**：在 `scripts/generate-weekly-cards.mjs` 中新增 `fetchWithRetry` 指数退避重试机制（针对 `429 / 500 / 502 / 503 / 504` 及网络抖动最多自动重试 4 次，间隔 5s/15s/30s/60s 并尊重 `Retry-After` 响应头），避免周一云端高峰期偶发 503 导致定时任务失败。

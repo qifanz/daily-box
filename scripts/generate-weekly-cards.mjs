@@ -24,21 +24,27 @@ function loadWindowData() {
   };
 }
 
-function buildPrompt(categories, existingHooks) {
-  const categoryNames = categories.map((c) => c.id);
-  const recentHooks = existingHooks.slice(0, 120).join(' | ');
+const DEFAULT_WEEKLY_COUNT = 30;
+const MAX_BATCH_SIZE = 10;
+const DEDUP_HOOK_WINDOW = 200;
+
+function buildPrompt(batchSize, focusCategories, allCategories, existingHooks) {
+  const allCategoryNames = allCategories.map((c) => c.id);
+  const focusNames = focusCategories.map((c) => c.id);
+  const recentHooks = existingHooks.slice(0, DEDUP_HOOK_WINDOW).join(' | ');
 
   return `你是一个严谨又风趣的“30秒每日知识盲盒”资深科学人文编辑。
-请生成 10 张高质量、跨学科的冷知识或反直觉思维模型卡片，尽量均匀覆盖以下 ${categoryNames.length} 个领域：
-${categoryNames.join(' / ')}
+请生成 ${batchSize} 张高质量、跨学科的冷知识或反直觉思维模型卡片。
+本批次请重点均匀覆盖以下领域：${focusNames.join(' / ')}
+（如有多余名额，也可从全部领域中选取：${allCategoryNames.join(' / ')}）
 
 硬性要求：
 1. 事实必须准确经得起科学或历史推敲，拒绝伪科学或网络营销号谣言。
 2. 严格避免与以下已有题目重复或高度相似：${recentHooks}
-3. 请只输出合法 JSON 数组（不要包含任何 Markdown 代码块或额外解释文字），包含 10 个对象，每个对象结构如下：
+3. 请只输出合法 JSON 数组（不要包含任何 Markdown 代码块或额外解释文字），严格包含 ${batchSize} 个对象，每个对象结构如下：
 [
   {
-    "category": "必须严格等于上述领域名称之一",
+    "category": "必须严格等于全部领域名称之一",
     "difficulty": "轻松 或 进阶",
     "hook": "反直觉钩子问题或结论（32字以内）",
     "summary": "通俗准确的原理说明（95~140字）",
@@ -222,6 +228,25 @@ function validateAndFormat(rawItems, categories, existingHookSet, existingIdSet)
   return results;
 }
 
+function buildBatchPlan(totalCount, categories) {
+  const batchCount = Math.ceil(totalCount / MAX_BATCH_SIZE);
+  const batches = [];
+  let remaining = totalCount;
+
+  for (let i = 0; i < batchCount; i++) {
+    const size = Math.min(MAX_BATCH_SIZE, remaining);
+    remaining -= size;
+    const focus = categories.filter((_, idx) => idx % batchCount === i);
+    batches.push({
+      index: i + 1,
+      totalBatches: batchCount,
+      size,
+      focusCategories: focus.length ? focus : categories
+    });
+  }
+  return batches;
+}
+
 async function main() {
   const geminiKey = (process.env.GEMINI_API_KEY || '').trim();
   const openaiKey = (process.env.OPENAI_API_KEY || '').trim();
@@ -233,29 +258,53 @@ async function main() {
     return;
   }
 
+  const parsedTarget = Number(process.env.WEEKLY_CARD_COUNT);
+  const targetCount =
+    Number.isFinite(parsedTarget) && parsedTarget > 0 ? Math.min(Math.round(parsedTarget), 60) : DEFAULT_WEEKLY_COUNT;
+
   const { categories, seedCards, autoCards } = loadWindowData();
   const allExisting = [...autoCards, ...seedCards];
   const existingHookSet = new Set(allExisting.map((c) => String(c.hook || '').trim().toLowerCase()));
   const existingIdSet = new Set(allExisting.map((c) => c.id));
+  const recentHooks = allExisting.map((c) => c.hook);
 
-  const prompt = buildPrompt(
-    categories,
-    allExisting.map((c) => c.hook)
-  );
+  const batches = buildBatchPlan(targetCount, categories);
+  const collectedCards = [];
+  let lastError = null;
 
-  const rawText = geminiKey
-    ? await callGemini(prompt, geminiKey)
-    : await callOpenAICompatible(prompt, openaiKey);
+  for (const batch of batches) {
+    console.log(
+      `🚀 Batch ${batch.index}/${batch.totalBatches}: generating ${batch.size} cards (${batch.focusCategories.map((c) => c.id).join(' / ')})...`
+    );
+    const prompt = buildPrompt(batch.size, batch.focusCategories, categories, recentHooks);
 
-  const parsed = extractJsonArray(rawText);
-  const newCards = validateAndFormat(parsed, categories, existingHookSet, existingIdSet);
+    try {
+      const rawText = geminiKey
+        ? await callGemini(prompt, geminiKey)
+        : await callOpenAICompatible(prompt, openaiKey);
 
-  if (newCards.length === 0) {
+      const parsed = extractJsonArray(rawText);
+      const batchCards = validateAndFormat(parsed, categories, existingHookSet, existingIdSet);
+      collectedCards.push(...batchCards);
+      recentHooks.unshift(...batchCards.map((c) => c.hook));
+      console.log(`✅ Batch ${batch.index} added ${batchCards.length} valid unique cards.`);
+    } catch (err) {
+      lastError = err;
+      console.warn(`⚠️ Batch ${batch.index} failed: ${err.message}`);
+    }
+
+    if (batch.index < batches.length) {
+      await sleep(3000);
+    }
+  }
+
+  if (collectedCards.length === 0) {
+    if (lastError) throw lastError;
     console.log('⚠️ No valid non-duplicate cards produced this run.');
     return;
   }
 
-  const updatedAutoCards = [...newCards, ...autoCards];
+  const updatedAutoCards = [...collectedCards, ...autoCards];
   const outputContent = `(function () {
   // Auto-generated weekly cards appended by GitHub Actions.
   // Latest update: ${new Date().toISOString()}
@@ -264,7 +313,9 @@ async function main() {
 `;
 
   fs.writeFileSync(AUTO_PATH, outputContent, 'utf8');
-  console.log(`✅ Successfully added ${newCards.length} new cards. Total AUTO_CARDS: ${updatedAutoCards.length}`);
+  console.log(
+    `✅ Successfully added ${collectedCards.length} new cards (target ${targetCount}). Total AUTO_CARDS: ${updatedAutoCards.length}`
+  );
 }
 
 main().catch((err) => {

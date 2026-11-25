@@ -22,8 +22,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Generate 10 new weekly knowledge cards
+      - name: Generate 30 new weekly knowledge cards
         env:
+          WEEKLY_CARD_COUNT: '30'
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
