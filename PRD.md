@@ -68,6 +68,10 @@
 
 ## 5. 变更日志（Change Log）
 
+### v1.1.2 — 2026-11-24
+- **增强每周自动生卡脚本稳定性**：在 `scripts/generate-weekly-cards.mjs` 中新增 `fetchWithRetry` 指数退避重试机制（针对 `429 / 500 / 502 / 503 / 504` 及网络抖动最多自动重试 4 次，间隔 5s/15s/30s/60s 并尊重 `Retry-After` 响应头），避免周一云端高峰期偶发 503 导致定时任务失败。
+- **涉及文件**：`scripts/generate-weekly-cards.mjs`, `PRD.md`
+
 ### v1.1.1 — 2026-11-16
 - **修复 Gemini 默认模型下线导致的 404 问题**：将默认 Gemini 模型由已对新用户下线的 `gemini-2.5-flash` 升级为 `gemini-3.8-flash`，并在 `js/storage.js` 中对本地旧缓存配置自动迁移。
 - **涉及文件**：`scripts/generate-weekly-cards.mjs`, `js/storage.js`, `js/ai-generator.js`, `js/app.js`, `index.html`, `sw.js`, `PRD.md`

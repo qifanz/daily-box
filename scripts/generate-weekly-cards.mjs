@@ -69,28 +69,71 @@ function extractJsonArray(rawText) {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url, options, providerLabel) {
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, options);
+    } catch (networkErr) {
+      if (attempt === RETRY_DELAYS_MS.length) {
+        throw new Error(`${providerLabel} network error after ${attempt + 1} attempts: ${networkErr.message}`);
+      }
+      const waitMs = RETRY_DELAYS_MS[attempt];
+      console.warn(`⚠️ ${providerLabel} network error (${networkErr.message}), retrying in ${waitMs / 1000}s...`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    if (res.ok) {
+      return res;
+    }
+
+    const errText = await res.text();
+    if (!RETRYABLE_STATUSES.has(res.status) || attempt === RETRY_DELAYS_MS.length) {
+      throw new Error(`${providerLabel} API error (${res.status}): ${errText.slice(0, 200)}`);
+    }
+
+    const retryAfterSec = Number(res.headers.get('retry-after'));
+    const baseWaitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+      ? Math.min(retryAfterSec * 1000, 90000)
+      : RETRY_DELAYS_MS[attempt];
+    const jitterMs = Math.floor(Math.random() * 1500);
+    console.warn(
+      `⚠️ ${providerLabel} returned ${res.status}, retrying (${attempt + 1}/${RETRY_DELAYS_MS.length}) in ${Math.round((baseWaitMs + jitterMs) / 1000)}s...`
+    );
+    await sleep(baseWaitMs + jitterMs);
+  }
+}
+
 async function callGemini(prompt, apiKey) {
   const model = (process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
   )}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.85,
-        responseMimeType: 'application/json'
-      }
-    })
-  });
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.85,
+          responseMimeType: 'application/json'
+        }
+      })
+    },
+    'Gemini'
+  );
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText.slice(0, 200)}`);
-  }
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
@@ -99,26 +142,26 @@ async function callOpenAICompatible(prompt, apiKey) {
   const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   const model = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
+  const res = await fetchWithRetry(
+    `${baseUrl}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.85,
+        messages: [
+          { role: 'system', content: '你只输出严格合法的 JSON 数组。' },
+          { role: 'user', content: prompt }
+        ]
+      })
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.85,
-      messages: [
-        { role: 'system', content: '你只输出严格合法的 JSON 数组。' },
-        { role: 'user', content: prompt }
-      ]
-    })
-  });
+    'OpenAI-compatible'
+  );
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`OpenAI-compatible API error (${res.status}): ${errText.slice(0, 200)}`);
-  }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content || '';
 }
